@@ -168,10 +168,29 @@ def inspect_ipa(ipa_path: str) -> dict:
             raise IPAError("Main executable is not a recognized Mach-O binary")
 
         architecture_counts = {}
+        linked_libraries = set()
+        encryption_records = []
         for binary in binary_records:
             for arch in binary.get("architectures", []):
                 label = arch["architecture"]
                 architecture_counts[label] = architecture_counts.get(label, 0) + 1
+                linked_libraries.update(arch.get("linked_libraries", []))
+                if arch.get("encryption") is not None:
+                    encryption_records.append({
+                        "path": binary["path"],
+                        "architecture": label,
+                        **arch["encryption"],
+                    })
+
+        main_architectures = main_record["architectures"]
+        detected_minimum_ios = main_info.get("MinimumOSVersion") or next(
+            (arch.get("minimum_os") for arch in main_architectures if arch.get("minimum_os")),
+            None,
+        )
+        detected_sdk = next(
+            (arch.get("sdk_version") for arch in main_architectures if arch.get("sdk_version")),
+            None,
+        )
 
         return {
             "file": str(ipa_path),
@@ -179,7 +198,10 @@ def inspect_ipa(ipa_path: str) -> dict:
             "bundle_name": main_info.get("CFBundleDisplayName") or main_info.get("CFBundleName"),
             "version": main_info.get("CFBundleShortVersionString"),
             "build": main_info.get("CFBundleVersion"),
-            "minimum_ios": main_info.get("MinimumOSVersion"),
+            "minimum_ios": detected_minimum_ios,
+            "sdk_version": detected_sdk,
+            "linked_libraries": sorted(linked_libraries),
+            "encryption": encryption_records,
             "executable": main_executable,
             "architectures": main_record["architectures"],
             "binary_count": len(binary_records),
@@ -189,6 +211,7 @@ def inspect_ipa(ipa_path: str) -> dict:
                 "All recognized Mach-O files under Payload are inspected, including declared bundle executables.",
                 "Architecture detection does not guarantee runtime compatibility.",
                 "No conversion or modification was performed.",
-                "Encrypted binaries and unsupported Mach-O details may require additional analysis.",
+                "Load commands, linked libraries, SDK versions, minimum OS versions, and encryption flags are read when present.",
+                "Encryption flags report Mach-O metadata only; this tool does not decrypt or modify binaries.",
             ],
         }
