@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - "main.py"
+      - "gui.py"
       - "core/**"
       - "requirements.txt"
       - ".github/workflows/build-windows.yml"
@@ -25,12 +26,12 @@ jobs:
           python-version: "3.11"
       - name: Install PyInstaller
         run: python -m pip install --upgrade pip pyinstaller
-      - name: Build executable
-        run: pyinstaller --clean --noconfirm --onefile --name IPA64-Converter main.py
+      - name: Build graphical executable
+        run: pyinstaller --clean --noconfirm --onefile --windowed --name IPA64-Converter gui.py
       - name: Upload EXE
         uses: actions/upload-artifact@v4
         with:
-          name: IPA64-Converter-Windows
+          name: IPA64-Converter-Windows-GUI
           path: dist/IPA64-Converter.exe
           if-no-files-found: error
           retention-days: 14
