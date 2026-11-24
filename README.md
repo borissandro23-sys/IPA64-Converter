@@ -14,6 +14,8 @@ IPA64-Converter is an IPA inspection and binary-porting research tool. It reads 
 - Recognize ARMv6, ARMv7, ARMv7s, ARM64, ARM64e, i386, and x86_64.
 - Produce a JSON report with each binary's path, size, architecture list, and bundle metadata.
 - Parse Mach-O load commands and list linked dynamic libraries.
+- Read `LC_SYMTAB` and report up to 5,000 symbol names per architecture, with bounds checks.
+- Extract Objective-C class names from surviving `OBJC_CLASS_$_` and `OBJC_METACLASS_$_` symbols.
 - Detect minimum OS and SDK versions from Mach-O version commands when present.
 - Report Mach-O encryption flags (`cryptid`) without attempting decryption.
 - Apply archive entry, path, per-binary, and total-scan size limits.
@@ -50,8 +52,10 @@ ARMv6/ARMv7 machine code cannot be made ARM64 by changing a Mach-O header or rel
 
 This project is being developed in stages:
 1. Inventory every Mach-O executable and its architecture.
-2. Inspect load commands, linked libraries, version metadata, and encryption flags.
+2. Inspect load commands, linked libraries, version metadata, encryption flags, and available symbol names.
 3. Identify code and dependencies that would need replacement for an ARM64 build.
 4. Only then evaluate whether parts can be automated safely.
+
+Symbol-table output is best-effort: stripped binaries may contain few or no useful names, and Objective-C classes are listed only when their names survive in the symbol table. The parser reports at most 5,000 symbols per architecture to keep reports bounded.
 
 Architecture detection does not prove compatibility with a particular iOS release. Simulator architectures (i386 and x86_64) are not executable architectures for physical iPhones. ARM64e is reported separately when the Mach-O subtype identifies it. The tool does not bypass code signing, DRM, encryption, or platform security.
