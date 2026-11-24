@@ -46,6 +46,12 @@ class IPA64App:
         )
         self.save_button.pack(side="left", padx=(8, 0))
 
+        self.copy_button = ttk.Button(
+            controls, text="Копировать JSON", command=self.copy_report,
+            state="disabled",
+        )
+        self.copy_button.pack(side="left", padx=(8, 0))
+
         self.path_label = ttk.Label(
             outer, text="Файл не выбран", wraplength=700
         )
@@ -85,6 +91,7 @@ class IPA64App:
         self.report = None
         self.path_label.configure(text=path)
         self.save_button.configure(state="disabled")
+        self.copy_button.configure(state="disabled")
         self.show_text("Анализируем IPA…")
         self.root.update_idletasks()
 
@@ -105,6 +112,22 @@ class IPA64App:
         rendered = json.dumps(self.report, ensure_ascii=False, indent=2)
         self.show_text(rendered)
         self.save_button.configure(state="normal")
+        self.copy_button.configure(state="normal")
+
+    def copy_report(self):
+        if self.report is None:
+            return
+
+        rendered = json.dumps(self.report, ensure_ascii=False, indent=2)
+        try:
+            self.root.clipboard_clear()
+            self.root.clipboard_append(rendered)
+            self.root.update()
+        except tk.TclError as exc:
+            messagebox.showerror("Ошибка копирования", str(exc))
+            return
+
+        messagebox.showinfo("Скопировано", "JSON-отчёт скопирован в буфер обмена.")
 
     def save_report(self):
         if self.report is None:
