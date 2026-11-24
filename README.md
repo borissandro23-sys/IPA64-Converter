@@ -13,6 +13,9 @@ IPA64-Converter is an IPA inspection and binary-porting research tool. It reads 
 - Detect thin Mach-O and universal (FAT/FAT64) binaries.
 - Recognize ARMv6, ARMv7, ARMv7s, ARM64, ARM64e, i386, and x86_64.
 - Produce a JSON report with each binary's path, size, architecture list, and bundle metadata.
+- Parse Mach-O load commands and list linked dynamic libraries.
+- Detect minimum OS and SDK versions from Mach-O version commands when present.
+- Report Mach-O encryption flags (`cryptid`) without attempting decryption.
 - Apply archive entry, path, per-binary, and total-scan size limits.
 
 ## Requirements
@@ -47,7 +50,7 @@ ARMv6/ARMv7 machine code cannot be made ARM64 by changing a Mach-O header or rel
 
 This project is being developed in stages:
 1. Inventory every Mach-O executable and its architecture.
-2. Inspect load commands, linked libraries, symbols, and encryption status.
+2. Inspect load commands, linked libraries, version metadata, and encryption flags.
 3. Identify code and dependencies that would need replacement for an ARM64 build.
 4. Only then evaluate whether parts can be automated safely.
 
