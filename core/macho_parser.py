@@ -8,16 +8,16 @@ import struct
 from .architecture import describe_architecture
 
 THIN_MAGICS = {
-    b"\\xCE\\xFA\\xED\\xFE": ("<", False),
-    b"\\xCF\\xFA\\xED\\xFE": ("<", True),
-    b"\\xFE\\xED\\xFA\\xCE": (">", False),
-    b"\\xFE\\xED\\xFA\\xCF": (">", True),
+    b"\xCE\xFA\xED\xFE": ("<", False),
+    b"\xCF\xFA\xED\xFE": ("<", True),
+    b"\xFE\xED\xFA\xCE": (">", False),
+    b"\xFE\xED\xFA\xCF": (">", True),
 }
 FAT_MAGICS = {
-    b"\\xCA\\xFE\\xBA\\xBE": (">", False),
-    b"\\xBE\\xBA\\xFE\\xCA": ("<", False),
-    b"\\xCA\\xFE\\xBA\\xBF": (">", True),
-    b"\\xBF\\xBA\\xFE\\xCA": ("<", True),
+    b"\xCA\xFE\xBA\xBE": (">", False),
+    b"\xBE\xBA\xFE\xCA": ("<", False),
+    b"\xCA\xFE\xBA\xBF": (">", True),
+    b"\xBF\xBA\xFE\xCA": ("<", True),
 }
 
 MAX_FAT_ARCHES = 64
@@ -93,7 +93,7 @@ def _parse_thin(data: bytes, offset: int = 0, slice_end: int | None = None) -> d
             if cmdsize >= 24:
                 name_offset = struct.unpack_from(endian + "I", data, cursor + 8)[0]
                 if 8 <= name_offset < cmdsize:
-                    raw = data[cursor + name_offset:cursor + cmdsize].split(b"\\0", 1)[0]
+                    raw = data[cursor + name_offset:cursor + cmdsize].split(b"\0", 1)[0]
                     try:
                         library = raw.decode("utf-8", errors="replace")
                     except Exception:
