@@ -22,10 +22,14 @@ FAT_MAGICS = {
 
 MAX_FAT_ARCHES = 64
 MAX_LOAD_COMMANDS = 100_000
+MAX_SYMBOLS_TO_REPORT = 5000
+MAX_SYMBOL_STRING_TABLE_SIZE = 64 * 1024 * 1024
 LOAD_COMMAND_NAMES = {
     0x1: "LC_SEGMENT",
     0x2: "LC_SYMTAB",
+    0x5: "LC_UNIXTHREAD",
     0xB: "LC_DYSYMTAB",
+    0xE: "LC_LOAD_DYLINKER",
     0xC: "LC_LOAD_DYLIB",
     0xD: "LC_ID_DYLIB",
     0x18: "LC_LOAD_WEAK_DYLIB",
@@ -77,6 +81,7 @@ def _parse_thin(data: bytes, offset: int = 0, slice_end: int | None = None) -> d
     min_ios = None
     sdk_version = None
     encryption = None
+    symtab = None
     cursor = commands_start
 
     for _ in range(ncmds):
@@ -103,6 +108,15 @@ def _parse_thin(data: bytes, offset: int = 0, slice_end: int | None = None) -> d
                         command["library"] = library
                         if base_cmd != 0x1F:
                             linked_libraries.append(library)
+
+        if cmd == 0x2 and cmdsize >= 24:
+            symoff, nsyms, stroff, strsize = struct.unpack_from(endian + "IIII", data, cursor + 8)
+            symtab = {
+                "symbol_offset": symoff,
+                "symbol_count": nsyms,
+                "string_table_offset": stroff,
+                "string_table_size": strsize,
+            }
 
         if cmd == 0x25 and cmdsize >= 16:
             version, sdk = struct.unpack_from(endian + "II", data, cursor + 8)
@@ -134,6 +148,69 @@ def _parse_thin(data: bytes, offset: int = 0, slice_end: int | None = None) -> d
         "minimum_os": min_ios,
         "sdk_version": sdk_version,
         "encryption": encryption,
+        "symbol_table": _parse_symbol_table(data, offset, end, endian, is_64, symtab),
+    }
+
+
+def _parse_symbol_table(data, slice_offset, slice_end, endian, is_64, symtab):
+    """Read a bounded subset of nlist entries and recover Objective-C class names."""
+    if symtab is None:
+        return None
+
+    symbol_count = symtab["symbol_count"]
+    symbol_offset = symtab["symbol_offset"]
+    string_offset = symtab["string_table_offset"]
+    string_size = symtab["string_table_size"]
+    entry_size = 16 if is_64 else 12
+
+    if string_size > MAX_SYMBOL_STRING_TABLE_SIZE:
+        raise MachOError("Mach-O symbol string table exceeds the size limit")
+    if symbol_count > (slice_end - slice_offset) // entry_size:
+        raise MachOError("Mach-O symbol count is outside the binary slice")
+
+    symbol_bytes = symbol_count * entry_size
+    absolute_symbols = slice_offset + symbol_offset
+    absolute_strings = slice_offset + string_offset
+    if (absolute_symbols < slice_offset or absolute_symbols + symbol_bytes > slice_end
+            or absolute_strings < slice_offset or absolute_strings + string_size > slice_end):
+        raise MachOError("Mach-O symbol or string table is outside the binary slice")
+
+    strings = data[absolute_strings:absolute_strings + string_size]
+    symbols = []
+    objc_classes = set()
+    parsed_count = min(symbol_count, MAX_SYMBOLS_TO_REPORT)
+
+    for index in range(parsed_count):
+        entry = absolute_symbols + index * entry_size
+        strx, n_type, n_sect, n_desc = struct.unpack_from(endian + "IBBH", data, entry)
+        n_value = struct.unpack_from(endian + ("Q" if is_64 else "I"), data, entry + 8)[0]
+
+        if strx >= len(strings):
+            continue
+        name_bytes = strings[strx:].split(bytes([0]), 1)[0]
+        if not name_bytes:
+            continue
+        name = name_bytes.decode("utf-8", errors="replace")
+        symbols.append({
+            "name": name,
+            "type": n_type,
+            "section": n_sect,
+            "description": n_desc,
+            "value": n_value,
+        })
+
+        for marker in ("OBJC_CLASS_$_", "OBJC_METACLASS_$_"):
+            if marker in name:
+                class_name = name.split(marker, 1)[1]
+                if class_name:
+                    objc_classes.add(class_name)
+
+    return {
+        "declared_symbol_count": symbol_count,
+        "reported_symbol_count": len(symbols),
+        "truncated": symbol_count > MAX_SYMBOLS_TO_REPORT,
+        "objc_classes": sorted(objc_classes),
+        "symbols": symbols,
     }
 
 
