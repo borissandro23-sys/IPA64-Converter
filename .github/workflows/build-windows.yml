@@ -19,9 +19,9 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
       - name: Install PyInstaller
@@ -29,7 +29,7 @@ jobs:
       - name: Build graphical executable
         run: pyinstaller --clean --noconfirm --onefile --windowed --name IPA64-Converter gui.py
       - name: Upload EXE
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: IPA64-Converter-Windows-GUI
           path: dist/IPA64-Converter.exe
